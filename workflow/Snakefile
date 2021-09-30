@@ -18,13 +18,26 @@ rule all:
 include: "rules/common.smk"
 
 
-rule porechop:
+rule porechop_adapter_barcode_trimming:
     input:
         fastq_in="input_data/{sample}.fastq"
     output:
-        directory("results/{sample}")
+        #directory("results/{sample}")
+        "results/{sample}/{sample}_pc.fastq"
     conda:
         "envs/porechop.yaml"
     threads: 8
     shell:
-        "porechop -i {input.fastq_in} -b {output} --threads {threads}"
+        "porechop --require_two_barcodes -i {input.fastq_in} -b {output} --threads {threads}"
+
+
+rule medaka_polishing:
+    input:
+        "results/{sample}/{sample}_pc.fastq"
+    output:
+        "results/{sample}/{sample}_polished.fastq"
+    conda:
+        "envs/medaka.yaml"
+    threads: 2
+    shell:
+        "medaka_consensus -i {input} -d ../workflow/MN908947.3_SARS-CoV2_Wuhan-reference.fasta -t {threads}"
