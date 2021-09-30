@@ -7,10 +7,10 @@ report: "report/workflow.rst"
 # Allow users to fix the underlying OS via singularity.
 singularity: "docker://continuumio/miniconda3"
 
-samples = glob_wildcards("results/{sample}/medaka/consensus.fasta")
-rule all:
-    input:
-        expand("results/{sample}/medaka/consensus.fasta", sample=samples)
+# barcodes = glob_wildcards("results/{barcode}/medaka/consensus.fasta")
+# rule all:
+#     input:
+#         expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes)
         # The first rule should define the default target files
         # Subsequent target rules can be specified below. They should start with all_*.
 
@@ -20,24 +20,26 @@ include: "rules/common.smk"
 
 rule porechop_adapter_barcode_trimming:
     input:
-        fastq_in="input_data/{sample}.fastq"
+        fastq_in="input_data/{barcode}.fastq"
     output:
-        #directory("results/{sample}")
-        "results/{sample}/{sample}_pc.fastq"
+        out_dir=directory("results/{barcode}"),
+        out_file="results/{barcode}/{barcode}.fastq"
+        #"results/{sample}/{sample}_pc.fastq"
     conda:
         "envs/porechop.yaml"
     threads: 8
     shell:
-        "porechop --require_two_barcodes -i {input.fastq_in} -b {output} --threads {threads}"
+        "porechop --require_two_barcodes -i {input.fastq_in} -b {output.out_dir} --threads {threads}"
 
 
 rule medaka_polishing:
     input:
-        "results/{sample}/{sample}_pc.fastq"
+        "results/{barcode}/{barcode}.fastq"
     output:
-        "results/{sample}/{sample}_polished.fastq"
+        outdir=directory("results/{barcode}/medaka"),
+        outfile="results/{barcode}/medaka/consensus.fasta"
     conda:
         "envs/medaka.yaml"
     threads: 2
     shell:
-        "medaka_consensus -i {input} -d ../workflow/MN908947.3_SARS-CoV2_Wuhan-reference.fasta -t {threads}"
+        "medaka_consensus -i {input} -o {output.outdir} -d resources/MN908947.3_SARS-CoV2_Wuhan-reference.fasta -t {threads}"
