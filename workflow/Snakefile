@@ -7,12 +7,24 @@ report: "report/workflow.rst"
 # Allow users to fix the underlying OS via singularity.
 singularity: "docker://continuumio/miniconda3"
 
-
+samples = glob_wildcards("results/{sample}/medaka/consensus.fasta")
 rule all:
     input:
+        expand("results/{sample}/medaka/consensus.fasta", sample=samples)
         # The first rule should define the default target files
         # Subsequent target rules can be specified below. They should start with all_*.
 
 
 include: "rules/common.smk"
-include: "rules/other.smk"
+
+
+rule porechop:
+    input:
+        fastq_in="input_data/{sample}.fastq"
+    output:
+        directory("results/{sample}")
+    conda:
+        "envs/porechop.yaml"
+    threads: 8
+    shell:
+        "porechop -i {input.fastq_in} -b {output} --threads {threads}"
