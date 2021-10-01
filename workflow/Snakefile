@@ -19,7 +19,8 @@ rule all:
         #expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes),
         #expand("results/{barcode}/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
         #expand("results/{barcode}/{barcode}.fastq", barcode=barcodes)
-        expand("results/{barcode}_ab_fa/{barcode}.fasta", barcode=barcodes)
+        #expand("results/{barcode}_ab_fa/{barcode}.fasta", barcode=barcodes)
+        expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes)
         #input3="results/report.txt"
         #"results/report.txt"
         #expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes)
@@ -54,17 +55,17 @@ rule convert2fasta:
         "seqtk seq -A  {input} > {output}"
 
 
-# rule canu_correct:
-#     input:
-#         "results/{barcode}/{barcode}.fasta"
-#     output:
-#         out_dir=directory("results/{barcode}"),
-#         out_file="results/{barcode}/{barcode}.correctedReads.fasta.gz"
-#     conda:
-#         "envs/canu.yaml"
-#     threads: 4
-#     shell:
-#         "canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.outdir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
+rule canu_correct:
+    input:
+        "results/{barcode}_ab_fa/{barcode}.fasta"
+    output:
+        out_dir=directory("results/{barcode}_corr"),
+        out_file="results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
+    conda:
+        "envs/canu.yaml"
+    threads: 4
+    shell:
+        "canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
 
 
 # rule medaka_polishing:
