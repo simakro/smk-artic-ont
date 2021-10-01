@@ -7,13 +7,13 @@ report: "report/workflow.rst"
 # Allow users to fix the underlying OS via singularity.
 singularity: "docker://continuumio/miniconda3"
 
-# barcodes = glob_wildcards("results/{barcode}/medaka/consensus.fasta")
+
+        # The first rule should define the default target files
+        # Subsequent target rules can be specified below. They should start with all_*.
+# barcodes = glob_wildcards("results/{barcode}/medaka/consensus.fasta ")
 # rule all:
 #     input:
 #         expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes)
-        # The first rule should define the default target files
-        # Subsequent target rules can be specified below. They should start with all_*.
-
 
 include: "rules/common.smk"
 
@@ -30,6 +30,19 @@ rule porechop_adapter_barcode_trimming:
     threads: 8
     shell:
         "porechop --require_two_barcodes -i {input.fastq_in} -b {output.out_dir} --threads {threads}"
+
+
+rule canu_correct:
+    input:
+        "results/{barcode}/{barcode}.fastq"
+    output:
+        out_dir=directory("results/{barcode}_corr"),
+        out_file="results/{barcode}/{barcode}.fastq" #needs to be adjusted; not correct yet
+    conda:
+        "envs/canu.yaml"
+    threads: 8
+    shell:
+        "canu -correct -nanopore-raw {input} -p canu_corr_ -d {output.outdir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
 
 
 rule medaka_polishing:
