@@ -1,6 +1,6 @@
 # The main entry point of your workflow.
 # After configuring, running snakemake -n in a clone of this repository should successfully execute a dry-run of the workflow.
-
+import os
 
 report: "report/workflow.rst"
 
@@ -10,60 +10,83 @@ singularity: "docker://continuumio/miniconda3"
 
         # The first rule should define the default target files
         # Subsequent target rules can be specified below. They should start with all_*.
-# barcodes = glob_wildcards("results/{barcode}/medaka/consensus.fasta ")
-# rule all:
-#     input:
-#         expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes)
+#barcodes = glob_wildcards("results/{barcode}/medaka/consensus.fasta ")
+in_files = [fq_file.path for fq_file in os.scandir("./input_data") if os.path.isfile(fq_file)]
+barcodes = [os.path.split(fpath)[-1].split(".")[0] for fpath in in_files]
+print(barcodes)
+rule all:
+    input:
+        #expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes),
+        #expand("results/{barcode}/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
+        #expand("results/{barcode}/{barcode}.fastq", barcode=barcodes)
+        expand("results/{barcode}_ab_fa/{barcode}.fasta", barcode=barcodes)
+        #input3="results/report.txt"
+        #"results/report.txt"
+        #expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes)
 
-include: "rules/common.smk"
+
+#include: "rules/common.smk"
+#include: "rules/get_samples.smk"
 
 
 rule porechop_adapter_barcode_trimming:
     input:
         fastq_in="input_data/{barcode}.fastq"
     output:
-        out_dir=directory("results/{barcode}"),
-        out_file="results/{barcode}/{barcode}.abtrim.fastq"
+        out_dir=directory("results/{barcode}_abtrim"),
+        out_file="results/{barcode}_abtrim/{barcode}.fastq"
         #"results/{sample}/{sample}_pc.fastq"
     conda:
         "envs/porechop.yaml"
-    threads: 8
+    threads: 2
     shell:
         "porechop --require_two_barcodes -i {input.fastq_in} -b {output.out_dir} --threads {threads}"
 
 
 rule convert2fasta:
     input:
-        "results/{barcode}/{barcode}.abtrim.fastq"
+        "results/{barcode}_abtrim/{barcode}.fastq"
     output:
-        "results/{barcode}/{barcode}.abtrim.fasta"
+        "results/{barcode}_ab_fa/{barcode}.fasta"
     conda:
         "envs/seqtk.yaml"
     shell:
         "seqtk seq -A  {input} > {output}"
 
 
-rule canu_correct:
-    input:
-        "results/{barcode}/{barcode}.abtrim.fasta"
-    output:
-        out_dir=directory("results/{barcode}"),
-        out_file="results/{barcode}/{barcode}.correctedReads.fasta.gz"
-    conda:
-        "envs/canu.yaml"
-    threads: 8
-    shell:
-        "canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.outdir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
+# rule canu_correct:
+#     input:
+#         "results/{barcode}/{barcode}.fasta"
+#     output:
+#         out_dir=directory("results/{barcode}"),
+#         out_file="results/{barcode}/{barcode}.correctedReads.fasta.gz"
+#     conda:
+#         "envs/canu.yaml"
+#     threads: 4
+#     shell:
+#         "canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.outdir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
 
 
-rule medaka_polishing:
-    input:
-        "results/{barcode}/{barcode}.fastq"
-    output:
-        outdir=directory("results/{barcode}/medaka"),
-        outfile="results/{barcode}/medaka/consensus.fasta"
-    conda:
-        "envs/medaka.yaml"
-    threads: 2
-    shell:
-        "medaka_consensus -i {input} -o {output.outdir} -d resources/MN908947.3_SARS-CoV2_Wuhan-reference.fasta -t {threads}"
+# rule medaka_polishing:
+#     input:
+#         "results/{barcode}/{barcode}.fastq"
+#     output:
+#         outdir=directory("results/{barcode}/medaka"),
+#         outfile="results/{barcode}/medaka/consensus.fasta"
+#     conda:
+#         "envs/medaka.yaml"
+#     threads: 2
+#     shell:
+#         "medaka_consensus -i {input} -o {output.outdir} -d resources/MN908947.3_SARS-CoV2_Wuhan-reference.fasta -t {threads}"
+
+# rule write_report:
+#     input:
+#         # input1=expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes),
+#         # input2=expand("results/{barcode}/{barcode}.correctedReads.fasta.gz", barcode=barcodes)
+#         input1="results/{barcode}/medaka/consensus.fasta",
+#         input2="results/{barcode}/{barcode}.correctedReads.fasta.gz"
+#     output:
+#         report="results/report.txt"
+#     script:
+#         "./scripts/write_report.py {output.report}{input1},{input2}"
+        
