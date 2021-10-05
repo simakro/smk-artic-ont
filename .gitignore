@@ -1,3 +1,4 @@
 input_data/
 results/
 .snakemake/
+input_tmp/
