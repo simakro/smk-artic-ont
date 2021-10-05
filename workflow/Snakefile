@@ -20,7 +20,8 @@ rule all:
         #expand("results/{barcode}/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
         #expand("results/{barcode}/{barcode}.fastq", barcode=barcodes)
         #expand("results/{barcode}_ab_fa/{barcode}.fasta", barcode=barcodes)
-        expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes)
+        expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
+        expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes)
         #input3="results/report.txt"
         #"results/report.txt"
         #expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes)
@@ -39,7 +40,7 @@ rule porechop_adapter_barcode_trimming:
         #"results/{sample}/{sample}_pc.fastq"
     conda:
         "envs/porechop.yaml"
-    threads: 2
+    threads: 4
     shell:
         "porechop --require_two_barcodes -i {input.fastq_in} -b {output.out_dir} --threads {threads}"
 
@@ -55,6 +56,20 @@ rule convert2fasta:
         "seqtk seq -A  {input} > {output}"
 
 
+rule medaka_polishing:
+    input:
+        in_file="results/{barcode}_abtrim/{barcode}.fastq",
+        convcompl="results/{barcode}_ab_fa/{barcode}.fasta"
+    output:
+        outdir=directory("results/{barcode}_polish/medaka"),
+        outfile="results/{barcode}_polish/medaka/consensus.fasta"
+    conda:
+        "envs/medaka.yaml"
+    threads: 4
+    shell:
+        "medaka_consensus -i {input.in_file} -o {output.outdir} -d resources/MN908947.3_SARS-CoV2_Wuhan-reference.fasta -t {threads}"
+
+
 rule canu_correct:
     input:
         "results/{barcode}_ab_fa/{barcode}.fasta"
@@ -63,22 +78,12 @@ rule canu_correct:
         out_file="results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
     conda:
         "envs/canu.yaml"
-    threads: 4
+    threads: 6
     shell:
         "canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
 
 
-# rule medaka_polishing:
-#     input:
-#         "results/{barcode}/{barcode}.fastq"
-#     output:
-#         outdir=directory("results/{barcode}/medaka"),
-#         outfile="results/{barcode}/medaka/consensus.fasta"
-#     conda:
-#         "envs/medaka.yaml"
-#     threads: 2
-#     shell:
-#         "medaka_consensus -i {input} -o {output.outdir} -d resources/MN908947.3_SARS-CoV2_Wuhan-reference.fasta -t {threads}"
+
 
 # rule write_report:
 #     input:
