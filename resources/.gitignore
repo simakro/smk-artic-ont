@@ -1,0 +1,10 @@
+*
+*/
+!.gitignore
+!ARTIC_v1_adapters.py
+!ARTIC_v2_adapters.py
+!ARTIC_v3_adapters.py
+!ARTIC_v4_adapters.py
+!MN908947.3_SARS-CoV2_Wuhan-reference.fasta
+!MN908947.3_SARS-CoV2_Wuhan-reference.fasta.fai
+!MN908947.3_SARS-CoV2_Wuhan-reference.fasta.mmi
