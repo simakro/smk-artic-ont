@@ -12,7 +12,8 @@ singularity: "docker://continuumio/miniconda3"
         # Subsequent target rules can be specified below. They should start with all_*.
 #barcodes = glob_wildcards("results/{barcode}/medaka/consensus.fasta ")
 in_files = [fq_file.path for fq_file in os.scandir("./input_data") if os.path.isfile(fq_file)]
-barcodes = [os.path.split(fpath)[-1].split(".")[0] for fpath in in_files]
+accept_ext = ["fastq", "fq", "fasta", "fa", "fna"]
+barcodes = [os.path.split(fpath)[-1].split(".")[0] for fpath in in_files if os.path.split(fpath)[-1].split(".")[1] in accept_ext]
 print(barcodes)
 rule all:
     input:
