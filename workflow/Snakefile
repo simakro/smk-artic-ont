@@ -24,6 +24,8 @@ rule all:
 
 
 
+
+
 #include: "rules/common.smk"
 #include: "rules/get_samples.smk"
 
@@ -163,6 +165,15 @@ rule canu_assemble:
     shell:
         #"canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
         "canu -assemble -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=20 minReadLength=300 corMMapMerSize=10"
+
+rule cleanup:
+    input:
+        input=[f"results/{barcode}_asm/{barcode}.canu_asm.fasta.gz" for barcode in barcodes]
+    shell:
+        """
+        rm workflow/report/replacement_notice.txt
+        """
+
 
 # rule write_report:
 #     input:
