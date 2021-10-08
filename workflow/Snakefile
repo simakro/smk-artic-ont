@@ -62,7 +62,7 @@ rule customize_primer_porechop:
     shell:
         """
         rm $CONDA_PREFIX/lib/python3.6/site-packages/porechop/adapters.py
-        mv ./resources/ARTIC_v3_adapters.py $CONDA_PREFIX/lib/python3.6/site-packages/porechop/adapters.py
+        cp ./resources/ARTIC_v3_adapters.py $CONDA_PREFIX/lib/python3.6/site-packages/porechop/adapters.py
         touch workflow/report/replacement_notice.txt
         echo "replaced adpaters in adapter.py file with ARTICv3 primers" > workflow/report/replacement_notice.txt
         """
