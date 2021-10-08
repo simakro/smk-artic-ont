@@ -16,15 +16,11 @@ barcodes = [os.path.split(fpath)[-1].split(".")[0] for fpath in in_files]
 print(barcodes)
 rule all:
     input:
-        #expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes),
-        #expand("results/{barcode}/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
-        #expand("results/{barcode}/{barcode}.fastq", barcode=barcodes)
-        #expand("results/{barcode}_ab_fa/{barcode}.fasta", barcode=barcodes)
         expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
-        expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes)
+        expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes),
+        expand("results/{barcode}_primertrim/{barcode}.fastq", barcode=barcodes)
         #input3="results/report.txt"
-        #"results/report.txt"
-        #expand("results/{barcode}/medaka/consensus.fasta", barcode=barcodes)
+
 
 
 #include: "rules/common.smk"
@@ -40,9 +36,35 @@ rule porechop_adapter_barcode_trimming:
         #"results/{sample}/{sample}_pc.fastq"
     conda:
         "envs/porechop.yaml"
-    threads: 4
+    threads: 2
     shell:
-        "porechop -i {input.fastq_in} -o {output.out_file} --threads {threads}" #--require_two_barcodes
+        "porechop -i {input.fastq_in} -o {output.out_file} --threads {threads} -v 0"
+
+
+rule customize_primer_porechop:
+    output:
+        "workflow/report/replacement_notice.txt"
+    conda:
+        "envs/primechop.yaml"
+    shell:
+        """
+        rm $CONDA_PREFIX/lib/python3.6/site-packages/porechop/adapters.py
+        mv ./resources/ARTIC_v3_adapters.py $CONDA_PREFIX/lib/python3.6/site-packages/porechop/adapters.py
+        touch workflow/report/replacement_notice.txt
+        echo "replaced adpaters in adapter.py file with ARTICv3 primers" > workflow/report/replacement_notice.txt
+        """
+
+rule porechop_primer_trimming:
+    input:
+        fastq_in="results/{barcode}_abtrim/{barcode}.fastq",
+        repl_flag="workflow/report/replacement_notice.txt"
+    output:
+        "results/{barcode}_primertrim/{barcode}.fastq"
+    conda:
+        "envs/primechop.yaml"
+    threads: 2
+    shell:
+        "porechop -i {input.fastq_in} -o {output} --no_split --end_size 35 --extra_end_trim 0 --threads {threads} -v 0"
 
 
 rule convert2fasta:
@@ -54,15 +76,6 @@ rule convert2fasta:
         "envs/seqtk.yaml"
     shell:
         "seqtk seq -A  {input} > {output}"
-
-
-# rule convert2fasta:
-#     input:
-#         "results/{barcode}_abtrim/{barcode}.fastq"
-#     output:
-#         "results/{barcode}_ab_fa/{barcode}.fasta"
-#     script:
-#         "scripts/fastq_to_fasta_4_SM.py"
 
 
 rule medaka_polishing:
