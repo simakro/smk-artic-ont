@@ -17,7 +17,7 @@ barcodes = [os.path.split(fpath)[-1].split(".")[0] for fpath in in_files if os.p
 print(barcodes)
 rule all:
     input:
-        expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
+        #expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
         expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes),
         expand("results/{barcode}_primertrim/{barcode}.fastq", barcode=barcodes)
         #input3="results/report.txt"
@@ -26,6 +26,18 @@ rule all:
 
 #include: "rules/common.smk"
 #include: "rules/get_samples.smk"
+
+rule intial_qc:
+    input:
+        "input_data/{barcode}.fastq"
+    output:
+        directory("results/{barcode}/qc/initial")
+    log:
+        "logs/{barcode}/{barcode}_initialQC.log"
+    conda:
+        "envs/nanoqc.yaml"
+    shell:
+        "nanoQC {input} -o {output}"
 
 
 rule porechop_adapter_barcode_trimming:
@@ -55,6 +67,7 @@ rule customize_primer_porechop:
         echo "replaced adpaters in adapter.py file with ARTICv3 primers" > workflow/report/replacement_notice.txt
         """
 
+
 rule porechop_primer_trimming:
     input:
         fastq_in="results/{barcode}_abtrim/{barcode}.fastq",
@@ -68,11 +81,38 @@ rule porechop_primer_trimming:
         "porechop -i {input.fastq_in} -o {output} --no_split --end_size 35 --extra_end_trim 0 --threads {threads} -v 0"
 
 
+rule nanofilt:
+    input:
+        "results/{barcode}_primertrim/{barcode}.fastq"
+    output:
+        "results/{barcode}/trim-filt/{barcode}_tf.fastq"
+    log:
+        "logs/{barcode}/{barcode}_nanofilt.log"
+    conda:
+        "envs/nanofilt.yaml"
+    shell:
+        "NanoFilt {input} -q 10 --maxlength 500 > {output}"
+
+
+rule post_trimfilt_qc:
+    input:
+        "results/{barcode}/trim-filt/{barcode}_tf.fastq"
+    output:
+        directory("results/{barcode}/qc/post_trimfilt_qc")
+    log:
+        "logs/{barcode}/{barcode}_post_trimfilt_qc.log"
+    conda:
+        "envs/nanoqc.yaml"
+    shell:
+        "nanoQC {input} -o {output}"
+
+
 rule convert2fasta:
     input:
-        "results/{barcode}_abtrim/{barcode}.fastq"
+        #"results/{barcode}_abtrim/{barcode}.fastq"
+        "results/{barcode}/trim-filt/{barcode}_tf.fastq"
     output:
-        "results/{barcode}_ab_fa/{barcode}.fasta"
+        "results/{barcode}_fa/{barcode}_tf.fasta"
     conda:
         "envs/seqtk.yaml"
     shell:
@@ -81,8 +121,9 @@ rule convert2fasta:
 
 rule medaka_polishing:
     input:
-        in_file="results/{barcode}_abtrim/{barcode}.fastq",
-        convcompl="results/{barcode}_ab_fa/{barcode}.fasta"
+        in_file="results/{barcode}_fa/{barcode}_tf.fasta"
+        #in_file="results/{barcode}_abtrim/{barcode}.fastq",
+        #convcompl="results/{barcode}_ab_fa/{barcode}.fasta"
     output:
         outdir=directory("results/{barcode}_polish/medaka"),
         outfile="results/{barcode}_polish/medaka/consensus.fasta"
@@ -95,7 +136,7 @@ rule medaka_polishing:
 
 rule canu_correct:
     input:
-        "results/{barcode}_ab_fa/{barcode}.fasta"
+        "results/{barcode}_fa/{barcode}_tf.fasta"
     output:
         out_dir=directory("results/{barcode}_corr"),
         out_file="results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
@@ -105,8 +146,6 @@ rule canu_correct:
     shell:
         #"canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
         "canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
-
-
 
 
 # rule write_report:
