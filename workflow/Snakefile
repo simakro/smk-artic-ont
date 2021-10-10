@@ -20,7 +20,7 @@ rule all:
         #expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
         expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes),
         expand("results/{barcode}_primertrim/{barcode}.fastq", barcode=barcodes)
-        #input3="results/report.txt"
+        #input3="results/report.t
 
 
 
