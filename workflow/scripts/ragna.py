@@ -5,6 +5,7 @@ from collections import Counter
 import subprocess
 import multiprocessing as mp
 import numpy as np
+import pickle
     
 
 class Alignment:
@@ -226,7 +227,8 @@ def gen_consensus(maln_lst):
     for multaln in maln_lst: 
         aln_lst = list()
         convert_multiline_fasta(multaln, multaln + ".tmp")
-        os.remove(multaln)
+        #os.remove(multaln)
+        os.rename(multaln, multaln + ".ml")
         os.rename(multaln + ".tmp", multaln) 
         with open(multaln, "r") as mal:
             for line in mal:
