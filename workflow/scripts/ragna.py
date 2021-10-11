@@ -3,6 +3,7 @@ import sys
 import os
 from collections import Counter
 import subprocess
+import multiprocessing as mp
 import numpy as np
     
 
@@ -146,26 +147,6 @@ def write_out_bins(amp_binned_als):
     return bins
 
 
-# def multiprocessing_len_analysis(read_dir, fasta_ext):
-#         manager = mp.Manager()
-#         return_list = manager.list()
-#         return_dict = manager.dict()
-#         jobs = []
-
-#         for entry in os.scandir(read_dir):
-#             file_path = str(entry.path)
-#             tail = os.path.split(file_path)[1]
-#             f_name, f_ext = "".join(tail.split(".")[:-1]), tail.split(".")[-1]
-#             if f_ext in fasta_ext and entry.is_file():
-#                 p = mp.Process(target=get_read_len, args=(str(entry.path), return_list, return_dict))
-#                 jobs.append(p)
-#                 p.start()
-        
-#         for proc in jobs:
-#             proc.join()
-            
-#         return return_list, return_dict
-
 def convert_multiline_fasta(ml_in, sl_out):
 	converted = open(sl_out, "a")
 	row=0
@@ -182,57 +163,98 @@ def convert_multiline_fasta(ml_in, sl_out):
 				print(line.strip(), end="", file=converted),
 	converted.close()
 
-
-def multiple_alignment(bin_list):
+def multiprocessing_multiple_al(bin_list):
+        # manager = mp.Manager()
+        # return_list = manager.list()
+        #return_dict = manager.dict()
+    jobs = []
     maln_lst = list()
     for bin in bin_list:
         outfile = bin + ".maln"
         maln_lst.append(outfile)
-        with open(bin, "r") as readpile:
-            subprocess.call(["muscle", "-in", bin, "-out", outfile])
-    for mal in maln_lst:
-        convert_multiline_fasta(mal, mal + ".tmp")
-    for mal in maln_lst:
-        os.remove(mal)
-        os.rename(mal + ".tmp", mal)    
+        # for entry in os.scandir(read_dir):
+        #     file_path = str(entry.path)
+        #     tail = os.path.split(file_path)[1]
+        #     f_name, f_ext = "".join(tail.split(".")[:-1]), tail.split(".")[-1]
+        #if f_ext == "fasta" and entry.is_file():
+        p = mp.Process(target=mp_multiple_alignment, args=(bin, outfile))
+        jobs.append(p)
+        p.start()
+        
+    for proc in jobs:
+        proc.join()
+            
     return maln_lst
+
+
+# return_list, return_dict = multiprocessing_len_analysis(read_dir, fasta_ext)
+
+# def get_read_len(read_file, return_list, return_dict):
+#     read_lens = []
+#     read_dict = {}
+#     with open(read_file, "r") as fasta:
+#         for line in fasta:
+#                 if line.startswith(">"):
+#                     name = line.split(" ")[0]
+#                     seq = next(fasta).strip()
+#                     read_lens.append(len(seq))
+#                     read_dict[name] = len(seq)
+#     return_list.extend(read_lens)
+#     return_dict.update(read_dict)
+
+# def multiple_alignment(bin_list): #single threaded
+#     maln_lst = list()
+#     for bin in bin_list:
+#         outfile = bin + ".maln"
+#         maln_lst.append(outfile)
+#         #with open(bin, "r") as readpile:
+#         subprocess.call(["muscle", "-in", bin, "-out", outfile])
+#     for mal in maln_lst:
+#         convert_multiline_fasta(mal, mal + ".tmp")
+#     for mal in maln_lst:
+#         os.remove(mal)
+#         os.rename(mal + ".tmp", mal)    
+#     return maln_lst
+
+
+def mp_multiple_alignment(bin, outfile): #multiprocessing
+    #with open(bin, "r") as readpile:
+    subprocess.call(["muscle", "-in", bin, "-out", outfile])
+
 
 def gen_consensus(maln_lst):
     for multaln in maln_lst: 
         aln_lst = list()
+        convert_multiline_fasta(multaln, multaln + ".tmp")
+        os.remove(multaln)
+        os.rename(multaln + ".tmp", multaln) 
         with open(multaln, "r") as mal:
             for line in mal:
                 if line.startswith(">"):
                     aln_lst.append(list(next(mal).strip()))
-        #n = len(aln_lst[0])
+        n = len(aln_lst[0])
+        print(n)
         maln_stack = np.asarray(aln_lst, "str")
         col_occur_a = np.count_nonzero(maln_stack == "A", axis = 0)
-        #print("A:\n", col_occur_a)
+        print("A:\n", col_occur_a)
         col_occur_t = np.count_nonzero(maln_stack == "T", axis = 0)
         col_occur_c = np.count_nonzero(maln_stack == "C", axis = 0)
         col_occur_g = np.count_nonzero(maln_stack == "G", axis = 0)
         col_occur_gap = np.count_nonzero(maln_stack == "-", axis = 0)
-        #print("-:\n", col_occur_gap)
-        cons_profile = list()
+        print("-:\n", col_occur_gap)
+        #scoring_array = np.assaray([col_occur_a, col_occur_t, col_occur_c, col_occur_g, col_occur_gap])
+        consensus = ""
+        for i in range(n):
+            score_dict = {"A": col_occur_a[i], "T": col_occur_t[i], "C": col_occur_c[i], "G": col_occur_g[i], "-": col_occur_gap[i]}
+            print(score_dict)
+            new = max(score_dict.items(), key=lambda x: x[1])[0]
+            print(new)
+            consensus = consensus + new
+        print(consensus)
+        cl = list(consensus)
+        compressed_consensus = "".join([char for char in cl if char != "-"])
+        print(compressed_consensus)
         
-        # for mal in aln_lst:
-        #     local_profile = {"A": 0, "T": 0, "G": 0, "C": 0, "-": 0}
-        #     for char in mal:
-
-        #consensus = 
-        
-        # profile = { 'T':[0]*n,'G':[0]*n ,'C':[0]*n,'A':[0]*n, '-':[0]*n}
-        # bestseqs = [[]]
-        # for i in range(n):
-        #     d = {N:profile[N][i] for N in ['T','G','C','A', '-']}
-        #     m = max(d.values())
-        #     l = [N for N in ['T','G','C','A'] if d[N] == m]
-        #     bestseqs = [ s+[N] for N in l for s in bestseqs ]
-        #     print(bestseqs)
-
-        # for s in bestseqs:
-        #     print(''.join(s))
-
         
 def analyze_als(als):
     lct = 0
@@ -254,26 +276,19 @@ def analyze_als(als):
 
 if __name__ == "__main__":
 
-    # from Bio import AlignIO
-    # from Bio.Align import AlignInfo
-    # alignment = AlignIO.read("/Users/simon/Documents/GitHub/smk-artic-ont/results/binned_reads/Amp2_binned_reads.fasta.maln", "fasta")
-    # summary_align = AlignInfo.SummaryInfo(alignment)
-    # summary_align.dumb_consensus(0.5)
-
-
-    # reads_fasta = "/Users/simon/Documents/IKIM_Experiments/SM_0002_GridION_SARS-CoV2_ArticV3_Etablierung/SM0002_GridION_SARSCoV2_ARTICv3_20210915/SM002_barcodes_both_ends_demultiplexed/canu_corrected_and_trimmed/BC02_corr/BC02.correctedReads.fasta"
-    # max_amp_len = 420
-    # amp_csv = "./resources/ARTICv3_amplicons.csv"
-    # paf = sys.argv[1]
-    # reads = load_reads(reads_fasta)
-    # amps = load_amplicons(amp_csv)
-    # merged_amps = merge_alt__amps(amps)
-    # als = load_mm2_paf(paf, reads)
-    # filt_als = filter_paf(als, max_amp_len)
-    # amp_binned_als = sort_alns_to_amps(merged_amps, filt_als)
-    # bin_list = write_out_bins(amp_binned_als)
-    # maln_lst= multiple_alignment(bin_list)
-    gen_consensus(["/Users/simon/Documents/GitHub/smk-artic-ont/results/binned_reads/Amp1_binned_reads.fasta.maln.sl"])
+    reads_fasta = "/Users/simon/Documents/IKIM_Experiments/SM_0002_GridION_SARS-CoV2_ArticV3_Etablierung/SM0002_GridION_SARSCoV2_ARTICv3_20210915/SM002_barcodes_both_ends_demultiplexed/canu_corrected_and_trimmed/BC02_corr/BC02.correctedReads.fasta"
+    max_amp_len = 420
+    amp_csv = "./resources/ARTICv3_amplicons.csv"
+    paf = sys.argv[1]
+    reads = load_reads(reads_fasta)
+    amps = load_amplicons(amp_csv)
+    merged_amps = merge_alt__amps(amps)
+    als = load_mm2_paf(paf, reads)
+    filt_als = filter_paf(als, max_amp_len)
+    amp_binned_als = sort_alns_to_amps(merged_amps, filt_als)
+    bin_list = write_out_bins(amp_binned_als)
+    maln_lst= multiprocessing_multiple_al(bin_list)
+    gen_consensus(maln_lst)
 
 
 
