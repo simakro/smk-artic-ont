@@ -132,6 +132,10 @@ def sort_alns_to_amps(merged_amps, filt_als):
     print("unbinnable:", len(unbinnable))
     print("sum unbinned+binned", len(binned) + len(unbinnable))
     print("input als:", len(filt_als))
+
+    with open("pickled_amp_binned_als.lst", "wb") as paba:
+        pickle.dump(merged_amps, paba)
+
     return merged_amps
 
 
@@ -145,7 +149,7 @@ def write_out_bins(amp_binned_als):
             bins.append(bin_path)
             with open(bin_path, "w") as out:
                 for read in amp.stacked_reads:
-                    if amp.stacked_reads > 0:
+                    if len(amp.stacked_reads) > 0:
                         out.write(">" + read + "\n")
                         out.write(amp.stacked_reads[read] + "\n")
         else:
@@ -183,6 +187,9 @@ def multiprocessing_multiple_al(bin_list):
         
     for proc in jobs:
         proc.join()
+    
+    with open("pickled_maln.lst", "wb") as mln:
+        pickle.dump(maln_lst, mln)
             
     return maln_lst
 
@@ -209,7 +216,9 @@ def mp_multiple_alignment(bin, outfile): #multiprocessing
 
 def gen_consensus(maln_lst):
     consensus_dict = {}
-    for multaln in maln_lst: 
+    print(maln_lst)
+    for multaln in maln_lst:
+        print(multaln)
         aln_lst = list()
         convert_multiline_fasta(multaln, multaln + ".tmp")
         #os.remove(multaln)
@@ -220,27 +229,30 @@ def gen_consensus(maln_lst):
                 if line.startswith(">"):
                     aln_lst.append(list(next(mal).strip()))
         n = len(aln_lst[0])
-        print(n)
+        #print(n)
         maln_stack = np.asarray(aln_lst, "str")
         col_occur_a = np.count_nonzero(maln_stack == "A", axis = 0)
-        print("A:\n", col_occur_a)
+        #print("A:\n", col_occur_a)
         col_occur_t = np.count_nonzero(maln_stack == "T", axis = 0)
         col_occur_c = np.count_nonzero(maln_stack == "C", axis = 0)
         col_occur_g = np.count_nonzero(maln_stack == "G", axis = 0)
         col_occur_gap = np.count_nonzero(maln_stack == "-", axis = 0)
-        print("-:\n", col_occur_gap)
+        #print("-:\n", col_occur_gap)
         #scoring_array = np.assaray([col_occur_a, col_occur_t, col_occur_c, col_occur_g, col_occur_gap])
         consensus = ""
         for i in range(n):
             score_dict = {"A": col_occur_a[i], "T": col_occur_t[i], "C": col_occur_c[i], "G": col_occur_g[i], "-": col_occur_gap[i]}
-            print(score_dict)
+            #print(score_dict)
             new = max(score_dict.items(), key=lambda x: x[1])[0]
-            print(new)
+            #print(new)
             consensus = consensus + new
         print(consensus)
         cl = list(consensus)
         compressed_consensus = "".join([char for char in cl if char != "-"])
-        consensus_dict[multaln.split("_")[0]] = compressed_consensus
+        head, tail = os.path.split(multaln)
+        amp_no = int(tail.split("_")[0].split("Amp")[1])
+        print(amp_no)
+        consensus_dict[amp_no] = compressed_consensus #multaln.split("_")[0]
         print(compressed_consensus)
         with open("pickled_consensus.dict", "wb") as coco:
             pickle.dump(consensus_dict, coco)
@@ -264,22 +276,67 @@ def analyze_als(als):
     print("namecount=", len(nct))
 
 
+def arrange_consensus_tiles(consensus_dict, amp_binned_als): #
+
+
+    ovl_dict = dict()
+    genome_len = int()
+    for amp in amp_binned_als:
+        if type(amp.ovl_with_prev_amp) == int:
+            genome_len = genome_len + amp.amp_len - amp.ovl_with_prev_amp
+            ovl_dict[amp.amp_name] = amp.ovl_with_prev_amp
+        else:
+            genome_len = genome_len + amp.amp_len - max(amp.ovl_with_prev_amp)
+            ovl_dict[amp.amp_name] = max(amp.ovl_with_prev_amp)
+        
+    
+    amp_obj_dict = {}
+    for amp in amp_binned_als:
+        amp_obj_dict[amp.amp_name] = amp
+
+    print("Genome length", genome_len)
+
+    cons_tiles = sorted(consensus_dict.items())
+    stitched_genome = str()
+
+    
+    for tile in cons_tiles:
+        # seqment = tile[1]
+        # amp_num = tile[0]
+        # ovl_idx = ovl_dict[amp_num]
+        #print(ovl_idx)
+        stitched_genome = stitched_genome + tile[1][ovl_dict[tile[0]]:]
+
+    print(stitched_genome)
+
+    with open("result_stitched_genome", "w") as out:
+        out.write(stitched_genome)
+
+
 
 if __name__ == "__main__":
 
-    reads_fasta = "/Users/simon/Documents/IKIM_Experiments/SM_0002_GridION_SARS-CoV2_ArticV3_Etablierung/SM0002_GridION_SARSCoV2_ARTICv3_20210915/SM002_barcodes_both_ends_demultiplexed/canu_corrected_and_trimmed/BC02_corr/BC02.correctedReads.fasta"
-    max_amp_len = 420
-    amp_csv = "./resources/ARTICv3_amplicons.csv"
-    paf = sys.argv[1]
-    reads = load_reads(reads_fasta)
-    amps = load_amplicons(amp_csv)
-    merged_amps = merge_alt__amps(amps)
-    als = load_mm2_paf(paf, reads)
-    filt_als = filter_paf(als, max_amp_len)
-    amp_binned_als = sort_alns_to_amps(merged_amps, filt_als)
-    bin_list = write_out_bins(amp_binned_als)
-    maln_lst= multiprocessing_multiple_al(bin_list)
-    gen_consensus(maln_lst)
+    # reads_fasta = "/Users/simon/Documents/IKIM_Experiments/SM_0002_GridION_SARS-CoV2_ArticV3_Etablierung/SM0002_GridION_SARSCoV2_ARTICv3_20210915/SM002_barcodes_both_ends_demultiplexed/canu_corrected_and_trimmed/BC02_corr/BC02.correctedReads.fasta"
+    # max_amp_len = 420
+    # amp_csv = "./resources/ARTICv3_amplicons.csv"
+    # paf = sys.argv[1]
+    # reads = load_reads(reads_fasta)
+    # amps = load_amplicons(amp_csv)
+    # merged_amps = merge_alt__amps(amps)
+    # als = load_mm2_paf(paf, reads)
+    # filt_als = filter_paf(als, max_amp_len)
+    # amp_binned_als = sort_alns_to_amps(merged_amps, filt_als)
+    # bin_list = write_out_bins(amp_binned_als)
+    # maln_lst= multiprocessing_multiple_al(bin_list)
+    with open("pickled_maln.lst", "rb") as pm:
+        maln_lst = pickle.load(pm)
+    with open("pickled_amp_binned_als.lst", "rb") as aba:
+        amp_binned_als = pickle.load(aba)
+    with open("pickled_consensus.dict", "rb") as pcd:
+        consensus_dict = pickle.load(pcd)
+    consensus_dict = gen_consensus(maln_lst)
+    stitched_genome = arrange_consensus_tiles(consensus_dict, amp_binned_als)
+
 
 
 
