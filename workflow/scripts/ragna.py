@@ -134,17 +134,23 @@ def sort_alns_to_amps(merged_amps, filt_als):
     print("input als:", len(filt_als))
     return merged_amps
 
+
 def write_out_bins(amp_binned_als):
     bins = list()
     folder_path = "./results/binned_reads/"
     os.makedirs(folder_path, exist_ok=True)
     for amp in amp_binned_als:
-        bin_path = folder_path + "Amp" + str(amp.amp_name) + "_binned_reads.fasta"
-        bins.append(bin_path)
-        with open(bin_path, "w") as out:
-            for read in amp.stacked_reads:
-                out.write(">" + read + "\n")
-                out.write(amp.stacked_reads[read] + "\n")
+        if len(amp.stacked_reads) > 0:
+            bin_path = folder_path + "Amp" + str(amp.amp_name) + "_binned_reads.fasta"
+            bins.append(bin_path)
+            with open(bin_path, "w") as out:
+                for read in amp.stacked_reads:
+                    if amp.stacked_reads > 0:
+                        out.write(">" + read + "\n")
+                        out.write(amp.stacked_reads[read] + "\n")
+        else:
+            print("Amplicon 64 dropout")
+
     return bins
 
 
@@ -164,20 +170,13 @@ def convert_multiline_fasta(ml_in, sl_out):
 				print(line.strip(), end="", file=converted),
 	converted.close()
 
+
 def multiprocessing_multiple_al(bin_list):
-        # manager = mp.Manager()
-        # return_list = manager.list()
-        #return_dict = manager.dict()
     jobs = []
     maln_lst = list()
     for bin in bin_list:
         outfile = bin + ".maln"
         maln_lst.append(outfile)
-        # for entry in os.scandir(read_dir):
-        #     file_path = str(entry.path)
-        #     tail = os.path.split(file_path)[1]
-        #     f_name, f_ext = "".join(tail.split(".")[:-1]), tail.split(".")[-1]
-        #if f_ext == "fasta" and entry.is_file():
         p = mp.Process(target=mp_multiple_alignment, args=(bin, outfile))
         jobs.append(p)
         p.start()
@@ -187,21 +186,6 @@ def multiprocessing_multiple_al(bin_list):
             
     return maln_lst
 
-
-# return_list, return_dict = multiprocessing_len_analysis(read_dir, fasta_ext)
-
-# def get_read_len(read_file, return_list, return_dict):
-#     read_lens = []
-#     read_dict = {}
-#     with open(read_file, "r") as fasta:
-#         for line in fasta:
-#                 if line.startswith(">"):
-#                     name = line.split(" ")[0]
-#                     seq = next(fasta).strip()
-#                     read_lens.append(len(seq))
-#                     read_dict[name] = len(seq)
-#     return_list.extend(read_lens)
-#     return_dict.update(read_dict)
 
 # def multiple_alignment(bin_list): #single threaded
 #     maln_lst = list()
@@ -224,6 +208,7 @@ def mp_multiple_alignment(bin, outfile): #multiprocessing
 
 
 def gen_consensus(maln_lst):
+    consensus_dict = {}
     for multaln in maln_lst: 
         aln_lst = list()
         convert_multiline_fasta(multaln, multaln + ".tmp")
@@ -255,8 +240,12 @@ def gen_consensus(maln_lst):
         print(consensus)
         cl = list(consensus)
         compressed_consensus = "".join([char for char in cl if char != "-"])
+        consensus_dict[multaln.split("_")[0]] = compressed_consensus
         print(compressed_consensus)
-        
+        with open("pickled_consensus.dict", "wb") as coco:
+            pickle.dump(consensus_dict, coco)
+    return consensus_dict
+
         
 def analyze_als(als):
     lct = 0
