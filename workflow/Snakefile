@@ -151,7 +151,7 @@ rule canu_correct:
 
 # rule canu_assemble:
 #     input:
-#         #intentioanlly assemble from reads without primer trimming (adapters and barcodes are removed), to increase chances for contiguous assembly, since otherwise the overlap is to short in some cases
+#         #intentionally assemble from reads without primer trimming (adapters and barcodes are removed), to increase chances for contiguous assembly, since otherwise the overlap is to short in some cases
 #         #variations in regions covered by primers will be recovered by a round of medaka polishing with completely trimmed reads after assembly 
 #         "results/{barcode}_abtrim/{barcode}.fastq"
 #     output:
@@ -167,16 +167,14 @@ rule canu_correct:
 
 rule spades_assemble:
     input:
-        #intentioanlly assemble from reads without primer trimming (adapters and barcodes are removed), to increase chances for contiguous assembly, since otherwise the overlap is to short in some cases
-        #variations in regions covered by primers will be recovered by a round of medaka polishing with completely trimmed reads after assembly 
-        "results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
+       "results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
     output:
         directory("results/{barcode}_spades_asm")
     conda:
         "envs/spades.yaml"
     threads: 6
     shell:
-        "spades.py --corona -s {input} -o  {output}"
+        "spades.py --corona -s {input} -o {output}"
 
 
 rule cleanup:
