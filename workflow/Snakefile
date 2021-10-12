@@ -17,14 +17,11 @@ barcodes = [os.path.split(fpath)[-1].split(".")[0] for fpath in in_files if os.p
 print(barcodes)
 rule all:
     input:
-        #expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
+        expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
         expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes),
-        expand("results/{barcode}_primertrim/{barcode}.fastq", barcode=barcodes)
+        expand("results/{barcode}_primertrim/{barcode}.fastq", barcode=barcodes),
+        expand("results/{barcode}_spades_asm", barcode=barcodes)
         #input3="results/report.t
-
-
-
-
 
 #include: "rules/common.smk"
 #include: "rules/get_samples.smk"
@@ -151,20 +148,36 @@ rule canu_correct:
         #"canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
         "canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
 
-rule canu_assemble:
+
+# rule canu_assemble:
+#     input:
+#         #intentioanlly assemble from reads without primer trimming (adapters and barcodes are removed), to increase chances for contiguous assembly, since otherwise the overlap is to short in some cases
+#         #variations in regions covered by primers will be recovered by a round of medaka polishing with completely trimmed reads after assembly 
+#         "results/{barcode}_abtrim/{barcode}.fastq"
+#     output:
+#         out_dir=directory("results/{barcode}_asm"),
+#         out_file="results/{barcode}_asm/{barcode}.canu_asm.fasta.gz"
+#     conda:
+#         "envs/canu.yaml"
+#     threads: 6
+#     shell:
+#         #"canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
+#         "canu -assemble -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=20 minReadLength=300 corMMapMerSize=10"
+
+
+rule spades_assemble:
     input:
         #intentioanlly assemble from reads without primer trimming (adapters and barcodes are removed), to increase chances for contiguous assembly, since otherwise the overlap is to short in some cases
         #variations in regions covered by primers will be recovered by a round of medaka polishing with completely trimmed reads after assembly 
-        "results/{barcode}_abtrim/{barcode}.fastq"
+        "results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
     output:
-        out_dir=directory("results/{barcode}_asm"),
-        out_file="results/{barcode}_asm/{barcode}.canu_asm.fasta.gz"
+        directory("results/{barcode}_spades_asm")
     conda:
-        "envs/canu.yaml"
+        "envs/spades.yaml"
     threads: 6
     shell:
-        #"canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
-        "canu -assemble -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=20 minReadLength=300 corMMapMerSize=10"
+        "spades.py --corona -s {input} -o  {output}"
+
 
 rule cleanup:
     input:
