@@ -1,4 +1,6 @@
-#Reference Assembly Guided de-Novo Assembly#
+# Reference Guided small viral GEnome de-novo Assembly from 3rdGen AMPlicon data '
+# REGGEA-AMP #
+
 import sys
 import os
 from collections import Counter
