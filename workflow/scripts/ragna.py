@@ -6,6 +6,7 @@ import subprocess
 import multiprocessing as mp
 import numpy as np
 import pickle
+import gzip
     
 
 class Alignment:
@@ -47,7 +48,6 @@ def load_reads(read_fasta):
                 name_long = line.strip().split(">")[1]
                 name = name_long.split(" ")[0]
                 read_dict[name] = next(reads).strip()
-    #print(read_dict)
     return read_dict
 
 
@@ -315,25 +315,24 @@ def arrange_consensus_tiles(consensus_dict, amp_binned_als): #
 
 
 if __name__ == "__main__":
-
-    # reads_fasta = "/Users/simon/Documents/IKIM_Experiments/SM_0002_GridION_SARS-CoV2_ArticV3_Etablierung/SM0002_GridION_SARSCoV2_ARTICv3_20210915/SM002_barcodes_both_ends_demultiplexed/canu_corrected_and_trimmed/BC02_corr/BC02.correctedReads.fasta"
-    # max_amp_len = 420
-    # amp_csv = "./resources/ARTICv3_amplicons.csv"
-    # paf = sys.argv[1]
-    # reads = load_reads(reads_fasta)
-    # amps = load_amplicons(amp_csv)
-    # merged_amps = merge_alt__amps(amps)
-    # als = load_mm2_paf(paf, reads)
-    # filt_als = filter_paf(als, max_amp_len)
-    # amp_binned_als = sort_alns_to_amps(merged_amps, filt_als)
-    # bin_list = write_out_bins(amp_binned_als)
-    # maln_lst= multiprocessing_multiple_al(bin_list)
-    with open("pickled_maln.lst", "rb") as pm:
-        maln_lst = pickle.load(pm)
-    with open("pickled_amp_binned_als.lst", "rb") as aba:
-        amp_binned_als = pickle.load(aba)
-    with open("pickled_consensus.dict", "rb") as pcd:
-        consensus_dict = pickle.load(pcd)
+    reads_fasta = "/home/simon/smk-artic-ont/smk-artic-ont/results/BC11_corr/BC11.correctedReads.fasta"
+    max_amp_len = 420
+    amp_csv = "./resources/ARTICv3_amplicons.csv"
+    paf = sys.argv[1]
+    reads = load_reads(reads_fasta)
+    amps = load_amplicons(amp_csv)
+    merged_amps = merge_alt__amps(amps)
+    als = load_mm2_paf(paf, reads)
+    filt_als = filter_paf(als, max_amp_len)
+    amp_binned_als = sort_alns_to_amps(merged_amps, filt_als)
+    bin_list = write_out_bins(amp_binned_als)
+    maln_lst= multiprocessing_multiple_al(bin_list)
+    # with open("pickled_maln.lst", "rb") as pm:
+    #     maln_lst = pickle.load(pm)
+    # with open("pickled_amp_binned_als.lst", "rb") as aba:
+    #     amp_binned_als = pickle.load(aba)
+    # with open("pickled_consensus.dict", "rb") as pcd:
+    #     consensus_dict = pickle.load(pcd)
     consensus_dict = gen_consensus(maln_lst)
     stitched_genome = arrange_consensus_tiles(consensus_dict, amp_binned_als)
 

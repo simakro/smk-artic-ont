@@ -17,7 +17,7 @@ barcodes = [os.path.split(fpath)[-1].split(".")[0] for fpath in in_files if os.p
 print(barcodes)
 rule all:
     input:
-        expand("results/{barcode}_corr/{barcode}.correctedReads.fasta.gz", barcode=barcodes),
+        expand("results/{barcode}_corr/{barcode}.correctedReads.fasta", barcode=barcodes),
         expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes),
         expand("results/{barcode}_primertrim/{barcode}.fastq", barcode=barcodes),
         expand("results/{barcode}_spades_asm", barcode=barcodes)
@@ -140,14 +140,15 @@ rule canu_correct:
         #the output of this step is actually not used in the current setup of this standalone workflow, but the step is still included 
         #for potetial use of the corrected reads in other downstream functions of UnCoVar
         out_dir=directory("results/{barcode}_corr"),
-        out_file="results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
+        out_file="results/{barcode}_corr/{barcode}.correctedReads.fasta"
     conda:
         "envs/canu.yaml"
     threads: 6
     shell:
-        #"canu -correct -nanopore-raw {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
-        "canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000"
-
+        """
+        canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000
+        gzip -d results/{wildcards.barcode}_corr/{wildcards.barcode}.correctedReads.fasta.gz
+        """
 
 # rule canu_assemble:
 #     input:
@@ -167,7 +168,7 @@ rule canu_correct:
 
 rule spades_assemble:
     input:
-       "results/{barcode}_corr/{barcode}.correctedReads.fasta.gz"
+       "results/{barcode}_corr/{barcode}.correctedReads.fasta"
     output:
         directory("results/{barcode}_spades_asm")
     conda:

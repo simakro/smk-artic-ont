@@ -1,4 +1,5 @@
 .snakemake/
 input_tmp/
+results_/
 .github/
 .DS_store
