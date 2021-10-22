@@ -127,7 +127,7 @@ rule medaka_polish_reference:
         "envs/medaka.yaml"
     threads: 4
     shell:
-        "medaka_consensus -i {input.in_file} -o {output.outdir} -d {input.reference} -t {threads}"
+        "medaka_consensus -v -i {input.in_file} -o {output.outdir} -d {input.reference} -t {threads}"
 
 
 rule canu_correct:
