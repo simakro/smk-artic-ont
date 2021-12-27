@@ -18,7 +18,7 @@ rule all:
         expand("results/{barcode}_corr/{barcode}.correctedReads.fasta", barcode=barcodes),
         expand("results/{barcode}_polish/medaka/consensus.fasta", barcode=barcodes),
         expand("results/{barcode}_primertrim/{barcode}.fastq", barcode=barcodes),
-        expand("results/{barcode}_spades_asm/scaffolds.fasta", barcode=barcodes),
+        expand("results/{barcode}_spades_asm/raw_contigs.fasta", barcode=barcodes),
         expand("results/{barcode}_ragoo/ragoo_output/ragoo.fasta", barcode=barcodes)
 
 
@@ -151,7 +151,7 @@ rule spades_assemble:
        "results/{barcode}_corr/{barcode}.correctedReads.fasta"
     output:
         outdir = directory("results/{barcode}_spades_asm"),
-        outfile = "results/{barcode}_spades_asm/scaffolds.fasta"
+        outfile = "results/{barcode}_spades_asm/raw_contigs.fasta"
     conda:
         "envs/spades.yaml"
     threads: 6
