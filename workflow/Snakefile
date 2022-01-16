@@ -139,15 +139,30 @@ rule canu_correct:
     conda:
         "envs/canu.yaml"
     threads:
-        64
+        16
     params:
         concurrency = lambda w, threads: int(threads/ 4) 
     shell:
+        # merylConcurrency={params.concurrency} merylThreads={threads} \ has no effect; according to canu documentation only one thread is used, although terminal output states otherwise
+        # the hap stage should be irrelevant, since no phasing is performed
+        # useGrid ist set to "False" for now for safety reasons, because Canu will submit all jobs by itself to a grid if detected, circumventing the control of snakemake, which is undesireable.
+        # To not impede scalability the useGrid parameter could be set to "remote" and maybe control can remain with the workflow engine, but that needs to be tested.
         """
-        canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k corConcurrency={params.concurrency} corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap minOverlapLength=10 minReadLength=200 corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000
+        canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k minOverlapLength=10 minReadLength=200 \
+        useGrid=false \ 
+        corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000 \
+        corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap \
+        corConcurrency={params.concurrency} \
+        cormhapConcurrency={params.concurrency} cormhapThreads={params.concurrency} \
+        cormmapConcurrency={params.concurrency} cormmapThreads={params.concurrency} \
+        obtmmapConcurrency={params.concurrency} obtmmapThreads={params.concurrency} \
+        utgmmapConcurrency={params.concurrency} utgmmapThreads={params.concurrency} \
+        redConcurrency={params.concurrency} redThreads={params.concurrency} \
+        ovbConcurrency={params.concurrency} \
+        ovsConcurrency={params.concurrency} \
+        oeaConcurrency={params.concurrency}
         gzip -d results/{wildcards.barcode}_corr/{wildcards.barcode}.correctedReads.fasta.gz
         """
-
 
 rule spades_assemble:
     input:
