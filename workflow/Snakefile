@@ -148,8 +148,7 @@ rule canu_correct:
         # useGrid ist set to "False" for now for safety reasons, because Canu will submit all jobs by itself to a grid if detected, circumventing the control of snakemake, which is undesireable.
         # To not impede scalability the useGrid parameter could be set to "remote" and maybe control can remain with the workflow engine, but that needs to be tested.
         """
-        canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k minOverlapLength=10 minReadLength=200 \
-        useGrid=false \ 
+        canu -correct -nanopore {input} -p {wildcards.barcode} -d {output.out_dir} genomeSize=30k minOverlapLength=10 minReadLength=200 useGrid=false \
         corMMapMerSize=10 corOutCoverage=50000 corMinCoverage=0 maxInputCoverage=20000 \
         corOverlapper=minimap utgOverlapper=minimap obtOverlapper=minimap \
         corConcurrency={params.concurrency} \
